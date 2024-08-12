@@ -1,0 +1,259 @@
+Primitive Data Type with size
+
+8 bits = 1 byte
+     Data Types         Size
+1      int              32 bits
+2      long             64 bits
+3      float            32 bits
+4      double           64 bits
+5      char             16 bits
+6      short            16 bits
+7      boolean          1 bit
+8      byte             8 bits
+
+(MCQ)
+Java don't allow Automatic data loss conversions.
+So, All Operators(*,+,-,/,%,^) wants to give result in bigger Data type. So that, more
+precise result can be evaluated(without data loss). (Called binary numeric promotion)
+So "[short a = 10;  a =     a        *      5;         ]"
+                         short(a) with(*) int(5) = int
+Three ways to Rectify:
+1
+int a = 5;
+a = a*5;
+
+2  Explicit conversion
+a = (short) (a * 5);
+3 use compound assignment, which implicitly casts;
+b*=5;
+
+=========================================================================================
+(MCQ) Difference between replace() and replaceAll()
+replace() method:
+replaces all the occurrences of old char with new char.
+replaceAll() method :
+replaces all the occurrences of old string with the new string.
+===============================================================================================
+(MCQ)
+static function can only call static functions. If they need to call non-static functions then
+they need to create object first.
+static local variables are not allowed in java, i.e, inside functions we can not declare any static
+variables.
+==========================================================================================
+Interview Question: Parent Class Of Exception:
+
+                           Object
+                              |
+                              v
+                           Throwable
+                              |
+              ----------------------------------
+              |                                 |
+              v                                 v
+           Exception                          Error
+   (Compile Time & Run Time Exception)
+
+                              Object
+                              |     |
+                              v     v
+                    InputStream     OutputStream
+                     |                     |
+                     v                     v
+                FileInputStream        FileOutputStream
+           ByteArrayInputStream        ByteArrayOutputStream
+           ObjectInputStream           ObjectOutputStream
+==========================================================================================
+
+Interview Question: What is difference between abstract class with abstract functions and
+abstract class without abstract functions?
+
+Abstract Class
+
+(a) Abstract class can not be instantiated. Declaring a class as abstract with no
+abstract functions means that we don't allow it to be instantiated on its own. InFact we can not
+instantiate Abstract class in any situation.
+(b) But Abstract class can have Constructor. Advantage of Constructor in Abstract
+Class. -> To initialize variable of Abstract Class.
+(c) Call to 'super()' must be first statement in constructor body.
+
+==========================================================================================
+Java Streams:
+
+Java Streams are categorized in 2 types:
+
+a) terminal operation: Terminal operations give end result. Ex: collect(), min(), max(), reduce(),
+toArray(), forEach()
+
+b) Intermediate operations: Intermediate operations are lazily loaded. When you call
+intermediate operations, they are actually not executed. They are just stored in the memory and
+executed when the terminal operation is called on the stream. Intermediate operations does not give
+end result. They just transform one stream to another stream. Ex: map(), filter()
+
+map:
+By using map, you transform the object values.
+
+The map operation allows us to apply a function, that takes in a parameter of one type, and
+returns something else.
+
+int[] row = listOfRow.stream().mapToInt(i -> i).toArray();
+
+int[][] routes = listOfRoutes.stream().map(u -> u.stream().mapToInt(i->i).toArray()).toArray(int[][]::new);
+
+List<AnotherPerson> listOfAnotherPerson =
+                listOfPerson.stream().map(p->new AnotherPerson(
+                        p.age, p.gender, p.name)).filter(ap-> ap.age<x).collect(Collectors.toList());
+
+Map<Integer, List<String>> map = listOdStudents.stream().collect(Collectors.groupingBy(
+        Student::getMarks, LinkedHashMap:: new,
+        Collectors.mapping(Student::getName, Collectors.toList())
+));
+
+filter:
+Filter is used for filtering the data, it always returns the boolean value. If it returns
+true, the item is added to list else it is filtered out (ignored)
+
+flatMap: flatMap() applies operation, as a mapper() and provides a stream of element values.
+It means that in each iteration of each element the flatMap() method creates a separate new stream.
+By using the flattening mechanism, it merges all streams into a single resultant stream.
+
+List<Integer> OddNumbers = Arrays.asList(1, 3, 5);
+List<Integer> EvenNumbers = Arrays.asList(2, 4, 6, 8);
+List<List<Integer>> listOfListofInts = Arrays.asList(PrimeNumbers, OddNumbers, EvenNumbers);
+
+List<Integer> listofInts  = listOfListofInts.stream().flatMap(
+                                              list -> list.stream()).collect(Collectors.toList());
+
+==============================================================================================
+access modifier power:
+public(different packages) > protected(within the same package or subclasses in
+different packages) > default(same package) > private (only same class)
+
+child class can not override method with more restrictive type than parent class.
+
+===============================================================================================
+
+Why is Java platform independent
+.java code                         .class file
+             avac fileName.java                   java classFileName
+source code ----------------------> Byte code --------------------------> JVM
+                               platform Independent              As JDK is platform dependent
+
+===============================================================================================
+
+Why is the class name the same as the filename in Java?
+
+The myth about the file name and class name should be same only when the class is declared
+in public.
+As in this case, java compiler(javac) is trying to map public class name -> filename but fails.
+
+a)
+public class Test{
+               javac Trial.java
+                -------------->                gives error, class Test is public,
+                                               should be declared in a file named
+                                               Test.java
+}
+Trial.java
+
+b)
+class Test1{
+      public static void main(String[] args){
+      }
+}
+class Test2{
+    public static void main(String[] args){
+    }
+}
+Trial.java                                javac Trial.java
+                                          ----------------->                generates 2 class files
+                                          map according to main             Test1.class
+                                          function                          Test2.class
+
+===================================================================================================
+A Memory Leak is a situation where there are objects present in the heap that are no longer used,
+but the garbage collector is unable to remove them from memory, and therefore, they're
+unnecessarily maintained. A memory leak is bad because it blocks memory resources and degrades
+system performance over time.
+================================================================================================
+Memory Management Concept:
+Heap Memory:
+---------------------------------------------------------------------------------------------------
+|        Young Generation:             |           Old Memory:                                     |
+|      1) occupy new Objects memory    |       1) When Survivor Memory S0 & Survivor Memory S1     |
+|      2) Minor GC will Be Performed   |          is full objects will be pushed to Old Memory     |
+|                                      |       2) Major GC                                         |
+|      Test t = new Test()             |       3) Time Out Errors                                  |
+|      t =  null;                      |                                                           |
+|                                      |                                                           |
+|    when young generation memory is   |                                                           |
+|    full it pushes the objects into   |      ---------------------------------------------        |
+|   | Survivor Memory S0 &  |          |      |              Memory Pool:                 |        |
+|   | Survivor Memory S1    |          |      |  1) uses to store Immutable Objects       |        |
+|---|-----------------------|----------|      |     Strings -> StringPool                 |        |
+|   |                       V          |      |                      ----------------     |        |
+|   |                                  |      |   String s1 = "Java"-|-------------  |    |        |
+|   |    Survivor Memory S0:           |      |                      |           V   |    |        |
+|   |                                  |      |   String s2 = "Java"-|--------->Java |    |        |
+|   |                                  |      |                      |            ^  |    |        |
+|   |                                  |      |   String s3 = "Java"-|------------   |    |        |
+|   |                                  |      |   s1 == s2 -> true   |_______________|    |        |
+|---|----------------------------------|      |                         String Pool       |        |
+|                                      |      |  String s4 = new String("Java") ----> Java|        |
+|   V                                  |      |___________________________________________|        |
+|     Survivor Memory S1:              |                                                           |
+|                                      |                                                           |
+|                                      |                                                           |
+|                                      |                                                           |
+|                                      |                                                           |
+---------------------------------------------------------------------------------------------------
+
+
+
+
+===============================================================================================
+x = 10, y = -10
+10   = 0000 0000 0000 0000 0000 0000 0000 1010
+       how to find binary representation of -ve 10
+Step1: reverse the 32 bit representation of 10( i.e 1 convert to 0 and 0 convert to 1)
+       1111 1111 1111 1111 1111 1111 1111 0101
+Step2: Add +1
+       1111 1111 1111 1111 1111 1111 1111 0101
+                                            +1
+       ----------------------------------------
+       1111 1111 1111 1111 1111 1111 1111 0110
+-10 =  1111 1111 1111 1111 1111 1111 1111 0110
+
+<< n  Left shift ->  shift the bit to left by n places. Increase the number by x*(2^n)
+x<<2 = 40
+0000 0000 0000 0000 0000 0000 0000 1010
+00 0000 0000 0000 0000 0000 0000 101000 = 40
+
+>> n  Right shift -> shift the bit to right by n places. Decrease the number by x/(2^n).
+fill the vacant bits in left side according to +ve or -ve
+x>>2 = 2
+0000 0000 0000 0000 0000 0000 0000 1010
+00 0000 0000 0000 0000 0000 0000 0000 10 = 2
+
+y>>2 = -2
+1111 1111 1111 1111 1111 1111 1111 0110
+11 1111 1111 1111 1111 1111 1111 1111 01
+
+fill the vacant bits in left side according to +ve or -ve
+
+>>> n Right shift filled with zero -> shift the bit to right by n places. Decrease the
+number x/(2^n). Fill the vacant bits in left side with zero
+x>>>2 = 2
+0000 0000 0000 0000 0000 0000 0000 1010
+00 0000 0000 0000 0000 0000 0000 0000 10 = 2
+
+y>>>2 = 1073741821
+1111 1111 1111 1111 1111 1111 1111 0110
+00 1111 1111 1111 1111 1111 1111 1111 01 = 1073741821
+
+if n>32 then it take only first five bits
+lets suppose n = 101 = 1100101
+n = 00101 = 5
+
+===============================================================================================
+
+

@@ -1,0 +1,31 @@
+Solved Make Notes:
+
+466. Count The Repetitions           ->  https://leetcode.com/problems/count-the-repetitions/
+517. Super Washing Machines          ->  https://leetcode.com/problems/super-washing-machines/
+546. Remove Boxes                    ->  https://leetcode.com/problems/remove-boxes/
+552. Student Attendance Record II    ->  https://leetcode.com/problems/student-attendance-record-ii/
+630 Course Schedule III              ->  https://leetcode.com/problems/course-schedule-iii/
+                                         [https://www.youtube.com/watch?v=Z-jQUO07dm0]
+
+741 Cherry Pickup                   ->  https://leetcode.com/problems/cherry-pickup/
+                                         [https://www.youtube.com/watch?v=ZV0sUzfA7Eg]
+
+
+782 Transform to Chessboard         ->  https://leetcode.com/problems/transform-to-chessboard/
+                                         [https://www.youtube.com/watch?v=pPks_UrfETo&t=562s,
+                                          https://www.youtube.com/watch?v=El6Eisl7NsE&t=872s]
+
+801 Minimum Swaps To Make Sequences Increasing  -> https://leetcode.com/problems/minimum-swaps-to-make-sequences-increasing/
+                                                   [
+                                                       https://www.youtube.com/watch?v=IeT9Qz_vqHo
+                                                       *https://www.youtube.com/watch?v=mLTF2UXkd2o
+                                                   ]
+
+803. Bricks Falling When Hit     -> https://leetcode.com/problems/bricks-falling-when-hit/
+                                                   [
+                                                       https://www.youtube.com/watch?v=v3F5yeyeAI4&t=1968s
+                                                   ]
+Unsolved:
+
+488. Zuma Game                       ->  https://leetcode.com/problems/zuma-game/
+472 ConcatenatedWords                    ->  https://leetcode.com/problems/concatenated-words/
