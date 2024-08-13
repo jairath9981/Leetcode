@@ -65,8 +65,11 @@ public class Cat_And_Mouse {
                         break;
                     x = input.nextInt();
                 }
+                int[][] graph = graphEdges.stream()
+                        .map(e->e.stream().mapToInt(Integer::intValue).toArray())
+                        .toArray(int[][]::new);
                 System.out.println();
-                int player = catAndMouse.catMouseGame(forest);
+                int player = catAndMouse.catMouseGame(graph);
                 System.out.println("Player Who Win: "+player);
             } else {
                 //43
@@ -80,6 +83,10 @@ public class Cat_And_Mouse {
     }
 
     public int catMouseGame(int[][] graph) {
+
+        for (int  i = 0; i<graph.length; i++){
+            System.out.println(graph[i]);
+        }
         return 0;
     }
 
