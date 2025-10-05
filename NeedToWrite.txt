@@ -24,7 +24,27 @@ Solved Make Notes:
 803. Bricks Falling When Hit     -> https://leetcode.com/problems/bricks-falling-when-hit/
                                                    [
                                                        https://www.youtube.com/watch?v=v3F5yeyeAI4&t=1968s
+                                                       Union Algo in Graph
                                                    ]
+
+
+913. Cat and Mouse     ->                            https://leetcode.com/problems/cat-and-mouse/description/
+                                                   [
+                                                       https://www.youtube.com/watch?v=c7wwqDNYT9g&t=1231s
+                                                       In code comments i wrote what is thought in video.
+Trick:
+1. How to solve question from the predefined win positions.
+2. How to reach to the start point from the predefined win positions of player.
+        i.e, one by one go to the previous state from the predefined win positions.
+                                                   ]
+
+
+920. Number of Music Playlists     -> https://leetcode.com/problems/number-of-music-playlists/description/
+                                                   [
+                                                       https://www.youtube.com/watch?v=2H0zU6v-xck
+   Learn Recursion Thinking process and optimization with DP
+                                                   ]
+
 Unsolved:
 
 488. Zuma Game                       ->  https://leetcode.com/problems/zuma-game/
