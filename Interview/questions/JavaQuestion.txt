@@ -1,0 +1,2 @@
+Garbage Collector
+    young generation vs old generation

@@ -1,0 +1,21 @@
+Build:
+    1. Rate limiter
+    2. Build LRU cache
+    3. Chess Game
+    4. Instagram
+    5. Uber
+
+Patterns:
+    1. Factory design pattern
+    2. Strategy Design pattern
+    3. SAGA Design Pattern
+
+Kinjal:
+    1. Build confluence page.
+    2. Zoom a conical shape 3-d image
+            Similar to zoom google map
+
+Links:
+
+
+

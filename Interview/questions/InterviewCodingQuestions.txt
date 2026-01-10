@@ -1,0 +1,51 @@
+Data Structure:
+
+    Array:
+        Median of 2 sorted array
+        Dutch Nation Flag Algorithm
+        Search In matrix that is sorted row and column wise
+
+    Link List:
+        1. Palindrome in link list.
+        2. Reverse alternate k link list
+
+    Dynamic Programming:
+        Square -> 3 variation
+            Maximum Sub Square Matrix Dynamic Programming
+                https://www.youtube.com/watch?v=_Lf1looyJMU
+            Maximum Size Rectangle of All 1's Dynamic Programming [Tricky]
+                https://www.youtube.com/watch?v=g8bSdXCG-lA
+
+
+        Thinking Notes revision
+
+    Stack:
+        Max. area rectangle in Histogram
+            stack pop:
+                Descending
+        Next large number
+                stack pop:
+                    Ascending
+
+    Queue:
+        Min. Sliding window k
+
+     Min Heap & Max Heap:
+        Median of infinite stream of integers
+
+     Tree:
+        Check tree is BST or not.
+
+    Sort:
+        Merge Sort on 2d array
+        Quick Sort
+
+if Time permits:
+    Spiral order oa array anf Binary tree
+    N queen Problem
+    Union of Graph ----> 803. Bricks Falling When Hit ----------> https://leetcode.com/problems/bricks-falling-when-hit/
+        https://www.youtube.com/watch?v=v3F5yeyeAI4&t=1968s
+
+    Topological Sort
+
+

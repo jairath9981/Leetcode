@@ -1,6 +1,0 @@
-Build:
-    1. Rate limiter
-    2. Build LRU cache
-
-Kinjal:
-    1. Build confluence page.

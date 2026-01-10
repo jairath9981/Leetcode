@@ -14,6 +14,7 @@ Output : 10
 */
 
 public class KMP_Algo {
+
     public static void main(String[] args) {
         KMP_Algo kmp_algo = new KMP_Algo();
         Scanner input = new Scanner(System.in);
