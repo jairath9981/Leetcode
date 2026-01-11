@@ -59,3 +59,107 @@ Token Bucket Algorithm:
             lastRefillTimestamp = now;
         }
     }
+
+ 2️⃣ Leaky Bucket Algorithm:
+ 📌 Intuition
+        Requests enter a bucket and leak out at a fixed speed.
+        Think of queue + constant drain.
+
+⚙️ How it works:
+    Requests go into a queue (bucket)
+    Requests are processed at constant rate
+    If bucket is full → reject new requests
+
+✅ Advantages
+    Smooth outgoing traffic
+    Prevents traffic spikes completely
+    Very predictable backend load
+
+❌ Disadvantages
+    No burst support
+    Higher latency
+    Not user-friendly for APIs
+
+ 🏭 Real-world usage:
+    Network traffic shaping
+    Video streaming
+
+🎥 Why Leaky Bucket is PERFECT for Video Streaming
+
+Problem in video streaming
+    Users may request video chunks in bursts
+    Backend (storage / CDN / transcoder) must receive traffic at a stable rate
+
+Sudden spikes cause:
+    Buffer underruns
+    Encoder overload
+    Network congestion
+👉 We want smooth outgoing traffic, not bursty.
+That’s exactly what Leaky Bucket guarantees.
+
+
+🪣 Leaky Bucket – Real-World Meaning
+    Incoming video chunk requests are queued
+    Chunks are sent to the client at a fixed rate
+
+Think:
+    Bucket → queue of video chunks
+    Leak rate → streaming bitrate (e.g., 5 MB/sec)
+
+🔁 How it works in streaming
+    Client requests chunks aggressively (seek / fast-forward*)
+    Requests go into a bucket (queue)
+    Server leaks chunks at constant speed
+
+If bucket overflows → drop / reject new chunks
+
+Token Bucket vs Leaky Bucket
+    Unlike the Leaky Bucket, the Token Bucket allows the system to handle more request than the fixed
+    rste for short period.
+
+So, Token Bucket is flexible in handling short term burst request.
+
+3. Fixed Window Algorithm
+The fixed window algorithm categorizes(break) time into fixed intervals known as windows, and it
+restricts the requests to specific numbers in the window(limit of acceptance of request in a window).
+That is if the limit is exceeded, the requests are closed
+down and they cannot be made again, at least until the next allowance or window.
+In this counter reset to zero at start of every new window.
+
+⚙️ How it works
+    Time divided into windows (e.g., 1 minute)
+    Count requests per window
+    If count > limit → reject
+
+🏭 Real-world usage:
+    Login attempt limits
+    Admin tools
+    Non-critical APIs
+
+Challenges:
+    Can lead to bursts at the boundary of windows. Potentially upto twice the limit,
+    Although very well suited for static traffic they are not suitable very much when it comes to
+    variable traffic patterns.
+
+Well suited where short term spike are allowed.
+
+
+4️⃣ Sliding Window Algorithm:
+ The sliding window algorithm is actually a variation of the fixed window algorithm.
+ It keeps a moving time frame and restricts the number of requests to be made within that frame.
+ It provides for a finer and basically a better rate limiting in that the window is most likely renewed
+ and the rate ideally spread out evenly over a period such that there can be adequate control over the
+ traffic direction and occurrence.
+
+ 📌 Intuition
+    Fixed window, but smarter.
+ Counts requests in a rolling time range.
+
+ ⚙️ How it works
+ Two approaches:
+ A) Sliding Window Log (accurate)
+     Store timestamp of every accepted request
+     Remove old timestamps [check beginning of queue]
+     Count remaining
+     ✔ Accurate
+
