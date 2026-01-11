@@ -1,0 +1,61 @@
+Rate Limiter: Rate user Request
+    Algorithm:
+        1. Token Bucket Algorithm -> centralized throttling
+        2. Leaky Bucket Algorithm
+        3. Fixed Window Algorithm
+        4. Sliding Window Algorithm -> centralized throttling
+
+
+| Algorithm      | Burst | Fair | Complexity | Distributed | Best for        |
+| -------------- | ----- | ---- | ---------- | ----------- | -------------   |
+| Token Bucket   | ✔✔✔   | ✔✔✔  | Medium     | ✔✔✔         |  APIs           |
+| Leaky Bucket   | ❌    | ✔✔   | Medium     | ✔           |  Network        |
+| Fixed Window   | ❌    | ❌   | Low        | ❌          |  Simple limits  |
+| Sliding Window | ✔     | ✔✔✔  | High       | ✔✔          |   Payments       |
+
+
+
+Token Bucket Algorithm:
+
+
+    import java.time.Instant;
+
+    public class TokenBucket {
+
+        private final double refillRatePerSecond;
+        private final double capacity;
+
+        private double tokens;
+        private long lastRefillTimestamp; // epoch millis
+
+        public TokenBucket(double refillRatePerSecond, double capacity) {
+            this.refillRatePerSecond = refillRatePerSecond;
+            this.capacity = capacity;
+            this.tokens = capacity;
+            this.lastRefillTimestamp = Instant.now().toEpochMilli();
+        }
+
+        /*
+            Here we use synchronized but this kind of setup will Works inside one JVM only.
+            For distributed system we need to use Redis Lua. So, that all pods see same token bucket.
+        */
+        public synchronized boolean allowRequest() {
+            refillTokens();
+
+            if (tokens >= 1.0) {
+                tokens -= 1.0;
+                return true;
+            }
+            return false;
+        }
+
+        private void refillTokens() {
+            long now = Instant.now().toEpochMilli();
+            double secondsElapsed = (now - lastRefillTimestamp) / 1000.0;
+
+            double tokensToAdd = secondsElapsed * refillRatePerSecond;
+            tokens = Math.min(capacity, tokens + tokensToAdd);
+
+            lastRefillTimestamp = now;
+        }
+    }

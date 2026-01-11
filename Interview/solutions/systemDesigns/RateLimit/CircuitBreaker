@@ -1,0 +1,214 @@
+Circuit Breaker:
+    A Circuit Breaker is a protective mechanism that:
+
+    Stops calling a failing downstream service temporarily
+    to prevent cascading failures, resource exhaustion, and total system outage.
+
+    💡 Think of it like an electrical circuit breaker in your house.
+
+Why do we need a Circuit Breaker?
+    Problem without Circuit Breaker:
+        Client
+          ↓
+        Service A
+          ↓
+        Service B (slow / down)
+
+If Service B:
+    is slow
+    times out
+    throws errors
+
+Then:
+    Threads in Service A get blocked
+    Connection pool fills up
+    CPU spikes
+    Service A also goes down
+    Whole system collapses
+
+This is called Cascading Failure ❌
+
+What Circuit Breaker does:
+    Client
+      ↓
+    Service A
+      ↓
+    Circuit Breaker
+       ├─ CLOSED → allow call
+       ├─ OPEN → fail fast
+       └─ HALF_OPEN → test recovery
+
+       💡 Think of it like an electrical circuit breaker in your house.
+
+What problems Circuit Breaker solves:
+
+    Problem	                        Solved?
+    Cascading failure	                ✅
+    Thread starvation	                ✅
+    Slow downstream	                    ✅
+    Network flakiness	                ✅
+    Load spikes	                        ⚠️ (combine with rate limiting)
+
+
+    | Pattern             | Purpose                       |
+    | ------------------- | ----------------------------- |
+    | **Retry**           | Handle transient failures     |
+    | **Circuit Breaker** | Stop calling broken service   |
+    | **Rate Limiter**    | Protect from traffic overload |
+    | **Bulkhead**        | Isolate resources             |
+
+
+When NOT to use Circuit Breaker:
+    ❌ Inside same JVM
+    ❌ Pure in-memory calls
+    ❌ Simple CRUD without latency
+
+
+| Aspect           | Rate Limiter                     | Circuit Breaker           |
+| ---------------- | -------------------------------- | ------------------------- |
+| Protects against | Too many requests                | Failing dependency        |
+| Trigger          | Request rate                     | Failure rate / latency    |
+| Scope            | Traffic control                  | Dependency health         |
+| Fails when       | Limit exceeded                   | Dependency unhealthy      |
+| Goal             | Fair usage & overload protection | Prevent cascading failure |
+
+
+    Circuit Breaker does not depend on Rate Limiter
+    Rate Limiter does not depend on Circuit Breaker
+
+
+    Incoming Request
+       ↓
+    Rate Limiter
+       ↓
+    Circuit Breaker
+       ↓
+    Timeout
+       ↓
+    Retry (optional)
+       ↓
+    Downstream Service
+
+ Key takeaway (very important)
+        Rate Limiter protects your system from users
+        Circuit Breaker protects your system from dependencies
+
+
+Below is a real, production-grade, end-to-end Circuit Breaker example using Spring Boot + Resilience4j,
+exactly how it is done in FAANG / large-scale microservices.
+
+🎯 Real-World Scenario (VERY common)
+
+Order Service → Payment Service
+OrderService calls PaymentService
+Payment service:
+    is slow sometimes
+    may return 5xx
+    may timeout
+We must not cascade failures
+We must fail fast when Payment is unhealthy
+
+👉 Circuit Breaker is the correct tool
+
+
+@CircuitBreaker is ALWAYS applied in the CALLER service, not in the CALLEE service.
+So in your example:
+    Order Service → calls → Payment Service
+    @CircuitBreaker goes in Order Service
+    NEVER on /pay API inside Payment Service
+
+Circuit Breaker configuration (YAML):
+resilience4j:
+  circuitbreaker:
+    instances:
+      paymentServiceCB:
+        registerHealthIndicator: true
+        slidingWindowType: COUNT_BASED
+        slidingWindowSize: 20
+        minimumNumberOfCalls: 10
+
+        failureRateThreshold: 50
+        slowCallRateThreshold: 50
+        slowCallDurationThreshold: 2s
+
+        permittedNumberOfCallsInHalfOpenState: 3
+        waitDurationInOpenState: 30s
+
+        automaticTransitionFromOpenToHalfOpenEnabled: true
+
+        recordExceptions:
+          - java.io.IOException
+          - java.net.SocketTimeoutException
+          - org.springframework.web.client.HttpServerErrorException
+
+        ignoreExceptions:
+          - com.example.exception.InvalidPaymentRequestException
+
+
+
+
+
+@Component
+public class PaymentClient {
+
+    private final RestTemplate restTemplate;
+
+    public PaymentClient(RestTemplate restTemplate) {
+        this.restTemplate = restTemplate;
+    }
+
+    public PaymentResponse charge(PaymentRequest request) {
+        return restTemplate.postForObject(
+                "http://payment-service/pay",
+                request,
+                PaymentResponse.class
+        );
+    }
+}
+
+
+
+@Service
+public class OrderPaymentService {
+
+    private final PaymentClient paymentClient;
+
+    public OrderPaymentService(PaymentClient paymentClient) {
+        this.paymentClient = paymentClient;
+    }
+
+    @CircuitBreaker(
+        name = "paymentServiceCB",
+        fallbackMethod = "paymentFallback"
+    )
+    public PaymentResponse processPayment(Order order) {
+
+        PaymentRequest request = new PaymentRequest(
+                order.getOrderId(),
+                order.getAmount()
+        );
+
+        return paymentClient.charge(request);
+    }
+
+    /**
+     * FALLBACK MUST MATCH METHOD SIGNATURE + Throwable
+     */
+    private PaymentResponse paymentFallback(
+            Order order,
+            Throwable ex) {
+
+        // IMPORTANT: do NOT hide failure
+        log.error("Payment service unavailable for order {}",
+                  order.getOrderId(), ex);
+
+        // Option 1: graceful degradation
+        return PaymentResponse.pending(
+                "Payment service temporarily unavailable"
+        );
+
+        // Option 2: throw domain exception
+        // throw new PaymentServiceUnavailableException();
+    }
+}
+

@@ -1,62 +1,25 @@
-Rate Limiter:
-    1. Token Bucket Algorithm -> centralized throttling
-    2. Spring Cloud Gateway rate-limiter by YAML configuration. Internally use Token Bucket algorithm
+Rate Limiter: Rate user Request
+    Algorithm:
+        1. Token Bucket Algorithm -> centralized throttling
+        2. Leaky Bucket Algorithm
+        3. Fixed Window Algorithm
+        4. Sliding Window Algorithm -> centralized throttling
+
+     Gateways:
+        1. Spring Cloud Gateway(SCG) rate-limiter by YAML configuration. Internally use Token Bucket algorithm
        backed by Redis.
        ❌ Cannot express:
             10 req/sec per user AND 100 req/min per IP AND 500 req/min global
        For this Bucket4j (Redis): It is a rate limiting engine, not a gateway feature.
-    3. Bucket4j (Redis): This is is a Java rate-limiting library based on the Token Bucket algorithm.
+
+     Library:
+        1. Bucket4j (Redis): This is is a Java rate-limiting library based on the Token Bucket algorithm.
                 This is NOT a gateway. It is in-process logic you embed inside your application.
-    4. Circuit Braker. These are king of filters.
-    5. Sliding Window Algorithm -> centralized throttling
-    6. Leaky Bucket Algorithm
 
 
+     Failure rate / latency: Nothing to do with Rate Limiter both are used for different-different things.
+        1. Circuit Breaker.
 
-
-Token Bucket Algorithm:
-
-    import java.time.Instant;
-
-    public class TokenBucket {
-
-        private final double refillRatePerSecond;
-        private final double capacity;
-
-        private double tokens;
-        private long lastRefillTimestamp; // epoch millis
-
-        public TokenBucket(double refillRatePerSecond, double capacity) {
-            this.refillRatePerSecond = refillRatePerSecond;
-            this.capacity = capacity;
-            this.tokens = capacity;
-            this.lastRefillTimestamp = Instant.now().toEpochMilli();
-        }
-
-        /*
-            Here we use synchronized but this kind of setup will Works inside one JVM only.
-            For distributed system we need to use Redis Lua. So, that all pods see same token bucket.
-        */
-        public synchronized boolean allowRequest() {
-            refillTokens();
-
-            if (tokens >= 1.0) {
-                tokens -= 1.0;
-                return true;
-            }
-            return false;
-        }
-
-        private void refillTokens() {
-            long now = Instant.now().toEpochMilli();
-            double secondsElapsed = (now - lastRefillTimestamp) / 1000.0;
-
-            double tokensToAdd = secondsElapsed * refillRatePerSecond;
-            tokens = Math.min(capacity, tokens + tokensToAdd);
-
-            lastRefillTimestamp = now;
-        }
-    }
 
 Spring Cloud Gateway – Rate Limiter (YAML):
 
@@ -143,7 +106,7 @@ Explain:
             SpringCloudGateway service can have multiple Pods. And can spread over multiple clusters.
             But, still tokens are shared globally. For understanding, take this is a shared bucket
             and each SpringCloudGateway request can access this shared bucket across multiple pods and
-            multiple clusters. All pods see same bucket.
+            multiple clusters i.e, All pods see same bucket.
             This all is possible with RedisRateLimiter.
                 RedisRateLimiter guarantees atomic execution.
                 request_rate_limiter.{routeId}.{key}
@@ -153,6 +116,17 @@ Explain:
             Shared Redis Cluster
                     ↓
             Lua-based Token Bucket
+
+            KeyResolver → Redis key → token bucket
+            But, see there can be multiple buckets.Bucket is atomic:
+                  Redis key → token bucket
+                Here, in SCG we can not write Custom decision logic.
+            What SCG actually does:
+                There is one Redis bucket per resolved key.
+                All gateway pods talk to the same KeyResolver -> Redis key
+                So the bucket is logically shared, not duplicated
+
+            One bucket per key, shared across pods
 
     Notes:
         We cannot switch algorithms (e.g. Sliding Window, Leaky Bucket) using
@@ -193,6 +167,10 @@ Bucket4j (Redis):
     Bucket4j is a Java rate-limiting library based on the Token Bucket algorithm.
     Bucket4j is NOT a gateway.
     It is in-process logic you embed inside your application.
+    <dependency>
+      <groupId>com.github.vladimir-bukhtoyarov</groupId>
+      <artifactId>bucket4j-core</artifactId>
+    </dependency>
 
     Bucket4j internal model:
         Bucket4j represents each bucket as:
@@ -203,6 +181,9 @@ Bucket4j (Redis):
              │   └─ refill period
              ├─ current tokens
              └─ last refill timestamp
+
+        ✅ What Bandwidth ACTUALLY is
+            Bandwidth = a contract describing how tokens flow over time
 
         Step 1: Identify the key.
         Step 2: Fetch bucket[From memory/Redis/Hazelcast]
@@ -220,11 +201,37 @@ Bucket4j (Redis):
 
         Bucket state stored:
             Map<key, Bucket>
+                Are there multiple buckets in Bucket4j?
+                YES — one bucket per key. Same as SCG.
+                Examples:
+                    userId=123   -> Bucket#123
+                    Ip=10.1.1.5  -> Bucket#10.1.1.5
+            This is same as Spring Cloud Gateway model, “bucket per key” — BUT…
+            The difference is:
+                Who controls the bucket creation, rules, and behavior
+
+            | Feature                        | Bucket4j | SCG RedisRateLimiter   |
+            | ------------------------------ | -------- | --------------------   |
+            | Multiple bandwidths per bucket | ✅        | ❌                    |
+            | Custom decision logic          | ✅        | ❌                    |
+            | Dynamic per-key policies       | ✅        | ❌                    |
+            | Precision & retry-after        | ✅        | ❌                    |
+            | In-service usage               | ✅        | ❌                    |
+
+
             Redis-backed Bucket4j:
                 Bucket bucket = Bucket4j.extension(RedisBucketExtension.getInstance())
                     .builder()
                     .addLimit(Bandwidth.simple(10, Duration.ofSeconds(1)))
+                    .addLimit(Bandwidth.simple(100, Duration.ofMinutes(1)))
+                    .addLimit(Bandwidth.simple(1000, Duration.ofDays(1)))
                     .build(redisProxy, "user:123");
+
+                Bucket (user:123)
+                 ├─ Bandwidth #1 → 10 req / second
+                 ├─ Bandwidth #2 → 100 req / minute
+                 └─ Bandwidth #3 → 1000 req / day
+
 
         Bucket4j can tell client when to retry:
             probe.getNanosToWaitForRefill()
@@ -233,6 +240,8 @@ Bucket4j (Redis):
         Where to place Bucket4j:    WHY
             Inside microservice:   Domain-specific limits
             Internal APIs:          Fine control
+
+
 
 
 

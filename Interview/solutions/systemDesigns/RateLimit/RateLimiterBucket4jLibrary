@@ -1,0 +1,357 @@
+//3️⃣ Redis Configuration
+@Configuration
+public class RedisConfig {
+
+    @Bean
+    public RedisConnectionFactory redisConnectionFactory() {
+        return new LettuceConnectionFactory("localhost", 6379);
+    }
+}
+
+// 4️⃣ Bucket Configuration (Bandwidth Rules)
+// This is where Bucket4j shines. [Bandwidth]
+@Component
+public class RateLimitConfiguration {
+
+    public BucketConfiguration standardUserBucket() {
+        return BucketConfiguration.builder()
+            // 10 requests / second
+            .addLimit(Bandwidth.classic(
+                10, Refill.greedy(10, Duration.ofSeconds(1))
+            ))
+            // 1000 requests / hour
+            .addLimit(Bandwidth.classic(
+                1000, Refill.intervally(1000, Duration.ofHours(1))
+            ))
+            .build();
+    }
+}
+
+// 5️⃣ Bucket Provider (Core Infrastructure Layer)
+//This is critical...
+
+@Component
+public class RedisBucketProvider {
+
+    private final ProxyManager<String> proxyManager;
+    private final RateLimitConfiguration rateLimitConfiguration;
+
+    /*
+        Redis-backed.
+        Atomic operations (Lua under the hood)
+    */
+    public RedisBucketProvider(RedisConnectionFactory redisConnectionFactory,
+                               RateLimitConfiguration rateLimitConfiguration) {
+
+        RedisClient redisClient = RedisClient.builder()
+                .connectionFactory(redisConnectionFactory)
+                .build();
+
+        this.proxyManager = Bucket4j.extension(Redis.class)
+                .proxyManagerFor(redisClient)
+                .build();
+
+        this.rateLimitConfiguration = rateLimitConfiguration;
+    }
+
+    /*
+        One bucket per key
+    */
+    public Bucket resolveBucket(String key) {
+        return proxyManager.builder()
+                .build(key, rateLimitConfiguration::standardUserBucket);
+    }
+}
+
+// 6️⃣ Rate Limit Service (Business Logic Layer)
+@Service
+public class RateLimitService {
+
+    private final RedisBucketProvider bucketProvider;
+
+    public RateLimitService(RedisBucketProvider bucketProvider) {
+        this.bucketProvider = bucketProvider;
+    }
+
+    public RateLimitResult tryConsume(String key) {
+        Bucket bucket = bucketProvider.resolveBucket(key);
+
+        ConsumptionProbe probe = bucket.tryConsumeAndReturnRemaining(1);
+
+        if (probe.isConsumed()) {
+            return RateLimitResult.allowed(probe.getRemainingTokens());
+        }
+
+        return RateLimitResult.blocked(probe.getNanosToWaitForRefill());
+    }
+}
+
+//7️⃣ RateLimitResult (Clean DTO)
+public class RateLimitResult {
+
+    private final boolean allowed;
+    private final long remainingTokens;
+    private final long retryAfterNanos;
+
+    private RateLimitResult(boolean allowed, long remainingTokens, long retryAfterNanos) {
+        this.allowed = allowed;
+        this.remainingTokens = remainingTokens;
+        this.retryAfterNanos = retryAfterNanos;
+    }
+
+    public static RateLimitResult allowed(long remainingTokens) {
+        return new RateLimitResult(true, remainingTokens, 0);
+    }
+
+    public static RateLimitResult blocked(long retryAfterNanos) {
+        return new RateLimitResult(false, 0, retryAfterNanos);
+    }
+
+    // getters
+}
+
+
+//8️⃣ Key Resolver (Per-User / Per-IP / Hybrid)
+@Component
+public class RateLimitKeyResolver {
+
+    public String resolve(HttpServletRequest request) {
+        String userId = request.getHeader("X-USER-ID");
+
+        if (userId != null) {
+            return "user:" + userId;
+        }
+
+        return "ip:" + request.getRemoteAddr();
+    }
+}
+
+//9️⃣ Controller (Very Thin)
+@RestController
+@RequestMapping("/api")
+public class DemoController {
+
+    private final RateLimitService rateLimitService;
+    private final RateLimitKeyResolver keyResolver;
+
+    public DemoController(RateLimitService rateLimitService,
+                          RateLimitKeyResolver keyResolver) {
+        this.rateLimitService = rateLimitService;
+        this.keyResolver = keyResolver;
+    }
+
+    @GetMapping("/data")
+    public ResponseEntity<String> getData(HttpServletRequest request) {
+
+        String key = keyResolver.resolve(request);
+        RateLimitResult result = rateLimitService.tryConsume(key);
+
+        if (!result.isAllowed()) {
+            return ResponseEntity.status(429)
+                    .header("Retry-After",
+                        String.valueOf(TimeUnit.NANOSECONDS.toSeconds(
+                            result.getRetryAfterNanos())))
+                    .body("Too many requests");
+        }
+
+        return ResponseEntity.ok("Success");
+    }
+}
+
+/*
+✔ Multiple pods → same Redis bucket
+✔ Atomic updates via Lua
+✔ Horizontal scaling safe
+✔ Per-user, per-IP, per-API limits
+✔ Easy to add paid tiers
+*/
+
+This architecture is exactly how modern SaaS pricing:
+    “Basic user" → limited requests per minute/day
+    "Premium user" → higher limits per minute/day”
+
+This is called plan-based, multi-window rate limiting.
+    used in ChatGPT as well.
+
+Why Token Bucket + Bandwidth is PERFECT for pricing:
+Bucket4j’s Bandwidth maps directly to pricing rules.
+
+Example: Basic Plan
+BucketConfiguration basicPlan = BucketConfiguration.builder()
+    .addLimit(Bandwidth.classic(
+        10, Refill.greedy(10, Duration.ofMinutes(1))     // 10 req/min
+    ))
+    .addLimit(Bandwidth.classic(
+        1000, Refill.intervally(1000, Duration.ofDays(1)) // 1000 req/day
+    ))
+    .build();
+
+Example: Premium Plan
+BucketConfiguration premiumPlan = BucketConfiguration.builder()
+    .addLimit(Bandwidth.classic(
+        120, Refill.greedy(120, Duration.ofMinutes(1))   // 120 req/min
+    ))
+    .addLimit(Bandwidth.classic(
+        20000, Refill.intervally(20000, Duration.ofDays(1)) // 20k/day
+    ))
+    .build();
+
+
+3️⃣ Pricing Plan Definition (CORE)
+PlanType.java
+public enum PlanType {
+    FREE,
+    BASIC,
+    PREMIUM,
+    ENTERPRISE
+}
+
+4️⃣ Pricing Rules → Bandwidth (THIS IS THE HEART)
+PlanBandwidthConfig.java
+
+@Component
+public class PlanBandwidthConfig {
+
+    public BucketConfiguration getConfiguration(PlanType plan) {
+        return switch (plan) {
+
+            case FREE -> BucketConfiguration.builder()
+                .addLimit(Bandwidth.classic(
+                    5, Refill.greedy(5, Duration.ofMinutes(1))
+                ))
+                .addLimit(Bandwidth.classic(
+                    100, Refill.intervally(100, Duration.ofDays(1))
+                ))
+                .build();
+
+            case BASIC -> BucketConfiguration.builder()
+                .addLimit(Bandwidth.classic(
+                    20, Refill.greedy(20, Duration.ofMinutes(1))
+                ))
+                .addLimit(Bandwidth.classic(
+                    1000, Refill.intervally(1000, Duration.ofDays(1))
+                ))
+                .build();
+
+            case PREMIUM -> BucketConfiguration.builder()
+                .addLimit(Bandwidth.classic(
+                    120, Refill.greedy(120, Duration.ofMinutes(1))
+                ))
+                .addLimit(Bandwidth.classic(
+                    20000, Refill.intervally(20000, Duration.ofDays(1))
+                ))
+                .build();
+
+            case ENTERPRISE -> BucketConfiguration.builder()
+                .addLimit(Bandwidth.classic(
+                    1000, Refill.greedy(1000, Duration.ofMinutes(1))
+                ))
+                .build();
+        };
+    }
+}
+
+5️⃣ Redis Bucket Manager (DISTRIBUTED & SAFE)
+BucketManager.java
+
+@Component
+public class BucketManager {
+
+    private final ProxyManager<String> proxyManager;
+    private final PlanBandwidthConfig planConfig;
+
+    public BucketManager(RedisConnectionFactory factory,
+                         PlanBandwidthConfig planConfig) {
+
+        RedisTemplate<String, byte[]> redisTemplate = new RedisTemplate<>();
+        redisTemplate.setConnectionFactory(factory);
+        redisTemplate.afterPropertiesSet();
+
+        this.proxyManager = Bucket4j.extension(Redis.class)
+                .proxyManagerFor(redisTemplate);
+
+        this.planConfig = planConfig;
+    }
+
+    public Bucket resolveBucket(String userId, PlanType plan) {
+        String key = "rate-limit:" + plan.name() + ":user:" + userId;
+
+        return proxyManager.builder()
+                .build(key, () -> planConfig.getConfiguration(plan));
+    }
+}
+
+6️⃣ Rate Limiting Service (SINGLE RESPONSIBILITY)
+PricingRateLimitService.java
+
+@Service
+public class PricingRateLimitService {
+
+    private final BucketManager bucketManager;
+
+    public PricingRateLimitService(BucketManager bucketManager) {
+        this.bucketManager = bucketManager;
+    }
+
+    public void validateRequest(String userId, PlanType plan) {
+        Bucket bucket = bucketManager.resolveBucket(userId, plan);
+
+        ConsumptionProbe probe = bucket.tryConsumeAndReturnRemaining(1);
+
+        if (!probe.isConsumed()) {
+            throw new RateLimitExceededException(
+                "Rate limit exceeded for plan " + plan +
+                ". Retry after " + probe.getNanosToWaitForRefill() / 1_000_000 + " ms"
+            );
+        }
+    }
+}
+
+
+@Component
+public class PricingRateLimitFilter extends OncePerRequestFilter {
+
+    private final PricingRateLimitService rateLimitService;
+
+    public PricingRateLimitFilter(PricingRateLimitService rateLimitService) {
+        this.rateLimitService = rateLimitService;
+    }
+
+    @Override
+    protected void doFilterInternal(
+            HttpServletRequest request,
+            HttpServletResponse response,
+            FilterChain filterChain)
+            throws ServletException, IOException {
+
+        String userId = request.getHeader("X-User-Id");
+
+        /*
+            Here we extracted from heade as this is a example only but in actual for this we need to call
+            DB or need to use cache.
+        */
+        String planHeader = request.getHeader("X-Plan");
+
+        if (userId != null && planHeader != null) {
+            PlanType plan = PlanType.valueOf(planHeader.toUpperCase());
+            rateLimitService.validateRequest(userId, plan);
+        }
+
+        filterChain.doFilter(request, response);
+    }
+}
+
+
+Request
+  ↓
+Authenticate user
+  ↓
+Resolve user's active subscription plan (DB / Cache)
+  ↓
+Apply rate limiting based on resolved userId + plan type
+  ↓
+Business API
+
+
+
+
