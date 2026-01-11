@@ -1,0 +1,30 @@
+Horizontal and Vertical Scaling
+
+Vertical Scaling: -> scaling up
+    1. We upgrade the same system rather than adding more systems. Add more power to your machine by
+       adding better processors, increasing RAM, or other power-increasing adjustments.
+
+    2. Simple to implement and useful for monolithic and small scale applications.
+
+    Examples
+        1. Upgrading a MySQL server from 16 GB RAM to 64 GB to handle more queries.
+        2. Moving a website hosted on a 2-core VM to an 8-core, higher-RAM VM to improve performance.
+
+    Disadvantages:
+        1. Limited scalability: Vertical scaling is constrained by the hardware's physical limitations.
+           Horizontal Scaling is not limited.
+        2. One server still receives all incoming requests thus increasing the possibility of downtime in
+           the event of a server failure.
+        3. Scaling up often requires restarting or replacing the machine, causing downtime.
+
+Horizontal Scaling -> scaling out
+    By adding more machines or servers to distribute the workload across a larger number of individual units.
+        How to distribute the workload across a larger number of individual units? [is seperate topic]
+    There is no downtime while adding more servers to the network.
+
+    Disadvantages
+        1. Requires complex architecture (load balancers, distributed databases, etc.).
+        2. Difficult to maintain strong consistency across distributed nodes. Requires synchronization,
+           messaging, or replication between nodes.
+
+

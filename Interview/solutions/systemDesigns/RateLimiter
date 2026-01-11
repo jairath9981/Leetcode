@@ -1,0 +1,255 @@
+Rate Limiter:
+    1. Token Bucket Algorithm -> centralized throttling
+    2. Spring Cloud Gateway rate-limiter by YAML configuration. Internally use Token Bucket algorithm
+       backed by Redis.
+       ❌ Cannot express:
+            10 req/sec per user AND 100 req/min per IP AND 500 req/min global
+       For this Bucket4j (Redis): It is a rate limiting engine, not a gateway feature.
+    3. Bucket4j (Redis): This is is a Java rate-limiting library based on the Token Bucket algorithm.
+                This is NOT a gateway. It is in-process logic you embed inside your application.
+    4. Circuit Braker. These are king of filters.
+    5. Sliding Window Algorithm -> centralized throttling
+    6. Leaky Bucket Algorithm
+
+
+
+
+Token Bucket Algorithm:
+
+    import java.time.Instant;
+
+    public class TokenBucket {
+
+        private final double refillRatePerSecond;
+        private final double capacity;
+
+        private double tokens;
+        private long lastRefillTimestamp; // epoch millis
+
+        public TokenBucket(double refillRatePerSecond, double capacity) {
+            this.refillRatePerSecond = refillRatePerSecond;
+            this.capacity = capacity;
+            this.tokens = capacity;
+            this.lastRefillTimestamp = Instant.now().toEpochMilli();
+        }
+
+        /*
+            Here we use synchronized but this kind of setup will Works inside one JVM only.
+            For distributed system we need to use Redis Lua. So, that all pods see same token bucket.
+        */
+        public synchronized boolean allowRequest() {
+            refillTokens();
+
+            if (tokens >= 1.0) {
+                tokens -= 1.0;
+                return true;
+            }
+            return false;
+        }
+
+        private void refillTokens() {
+            long now = Instant.now().toEpochMilli();
+            double secondsElapsed = (now - lastRefillTimestamp) / 1000.0;
+
+            double tokensToAdd = secondsElapsed * refillRatePerSecond;
+            tokens = Math.min(capacity, tokens + tokensToAdd);
+
+            lastRefillTimestamp = now;
+        }
+    }
+
+Spring Cloud Gateway – Rate Limiter (YAML):
+
+    spring:
+      cloud:
+        gateway:
+          routes:
+            - id: user-service
+              uri: http://localhost:8081
+              predicates:
+                - Path=/users/**
+              filters:
+                - name: RequestRateLimiter
+                  args:
+                    redis-rate-limiter.replenishRate: 10
+                    redis-rate-limiter.burstCapacity: 20
+                    redis-rate-limiter.requestedTokens: 1
+                    key-resolver: "#{@userKeyResolver}"
+
+      redis:
+        host: localhost
+        port: 6379
+
+Explain:
+    1. spring.cloud.gateway: Enables Spring Cloud Gateway. Gateway sits in front of microservices.
+    2. routes:
+      - id: user-service
+                Unique identifier for this route.
+                Spring Cloud Gateway rate limiting works per route.
+                Internally, the filter is executed only when attached to a route.
+
+    3. uri: http://localhost:8081. Target service where requests will be forwarded.
+    4. User can write full path also.
+        Example: http://localhost:8081/users
+    5. predicates: Rate limiter Condition to match requests
+    6. filters:
+      - name: RequestRateLimiter
+                Built-in Spring Cloud Gateway filter.
+                The filter RequestRateLimiter. Uses RedisRateLimiter. This uses Lua script:
+                    To Stores token count
+                    To Refills tokens based on time
+                    To Deducts tokens per request
+                        All in one atomic Redis operation.
+    7. args:
+        redis-rate-limiter.replenishRate: 10
+            Tokens added per second. Every second → 10 new tokens. Allows 10 requests per second steadily
+        redis-rate-limiter.burstCapacity: 20
+            Maximum tokens bucket can hold. Allows short bursts of traffic
+        redis-rate-limiter.requestedTokens: 1
+            Tokens consumed per request. Each HTTP request costs 1 token.
+            In this above setup 21st request is throttled.
+
+            For expensive API calls, we can
+            increase this, so per request more token would be consumed and less load on server service.
+                requestedTokens: 5
+
+
+            Tokens are independent of request processing time, i.e, Request processing time is
+            irrelevant for tokens.
+            If we want to limit user request based on request - response duration:
+                Semaphore-based limiting
+                Bulkhead pattern (Resilience4j)
+
+
+    8. key-resolver: "#{@userKeyResolver}":
+            Determines who is rate-limited.
+            Examples:
+                Per user
+                Per IP
+                Per API key
+                Per header
+
+            For this we can create Bean also:
+                @Bean
+                public KeyResolver userKeyResolver() {
+                    return exchange ->
+                        Mono.just(
+                            exchange.getRequest()
+                                    .getHeaders()
+                                    .getFirst("X-USER-ID")
+                        );
+                }
+    9. redis:
+            SpringCloudGateway service can have multiple Pods. And can spread over multiple clusters.
+            But, still tokens are shared globally. For understanding, take this is a shared bucket
+            and each SpringCloudGateway request can access this shared bucket across multiple pods and
+            multiple clusters. All pods see same bucket.
+            This all is possible with RedisRateLimiter.
+                RedisRateLimiter guarantees atomic execution.
+                request_rate_limiter.{routeId}.{key}
+
+            Multiple Gateway Pods
+                    ↓
+            Shared Redis Cluster
+                    ↓
+            Lua-based Token Bucket
+
+    Notes:
+        We cannot switch algorithms (e.g. Sliding Window, Leaky Bucket) using
+        Spring Cloud Gateway – Rate Limiter (YAML) directly.
+        But this is still possible:
+        As, Spring Cloud Gateway rate limiting works via:
+            RequestRateLimiterGatewayFilterFactory
+            RateLimiter<C>
+
+            public class SlidingWindowRateLimiterConfig {
+                private int maxRequests;
+                private Duration window;
+            }
+            @Component("slidingWindowRateLimiter")
+            public class SlidingWindowRateLimiter
+                    implements RateLimiter<SlidingWindowRateLimiterConfig> {
+            }
+
+            Plug into YAML
+              filters:
+                - name: RequestRateLimiter
+                  args:
+                    rate-limiter: "#{@slidingWindowRateLimiter}"
+                    maxRequests: 100
+                    window: 1m
+
+            How it works internally:
+                Request
+                  ↓
+                KeyResolver
+                  ↓
+                RateLimiter.isAllowed()
+                  ↓
+                ALLOW → Forward request
+                DENY  → 429 Too Many Requests
+
+Bucket4j (Redis):
+    Bucket4j is a Java rate-limiting library based on the Token Bucket algorithm.
+    Bucket4j is NOT a gateway.
+    It is in-process logic you embed inside your application.
+
+    Bucket4j internal model:
+        Bucket4j represents each bucket as:
+            Bucket
+             ├─ Bandwidth(s)
+             │   ├─ capacity
+             │   ├─ refill tokens
+             │   └─ refill period
+             ├─ current tokens
+             └─ last refill timestamp
+
+        Step 1: Identify the key.
+        Step 2: Fetch bucket[From memory/Redis/Hazelcast]
+        Step 3: Refill tokens.
+                elapsedTime = now - lastRefill
+                newTokens = elapsedTime * refillRate
+                tokens = min(capacity, tokens + newTokens)
+        Step 4: Try to consume.
+                if tokens >= requiredTokens:
+                    tokens -= requiredTokens
+                    allow
+                else:
+                    reject
+        Step 5: Persist state. Update tokens + timestamp
+
+        Bucket state stored:
+            Map<key, Bucket>
+            Redis-backed Bucket4j:
+                Bucket bucket = Bucket4j.extension(RedisBucketExtension.getInstance())
+                    .builder()
+                    .addLimit(Bandwidth.simple(10, Duration.ofSeconds(1)))
+                    .build(redisProxy, "user:123");
+
+        Bucket4j can tell client when to retry:
+            probe.getNanosToWaitForRefill()
+                Spring Cloud Gateway RedisRateLimiter cannot do this accurately.
+
+        Where to place Bucket4j:    WHY
+            Inside microservice:   Domain-specific limits
+            Internal APIs:          Fine control
+
+
+
+
+Internet
+  ↓
+*Envoy / Kong  (Infra Gateway)
+  ↓
+Spring Cloud Gateway(SCG) (App Gateway)
+  ↓
+Microservices
+
+We can not replace Envoy with SCG — they solve different layers.
+
+
+
+
+
+
+
