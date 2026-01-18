@@ -1,0 +1,47 @@
+System Architectural Styles:
+    We are already aware about monolith and microservice
+
+Stateless:
+    Every request contains all information needed to process it.
+    The server does not remember anything about previous requests.
+Example 1:
+    REST API
+        JWT contains user identity & permissions
+        Server does not store session
+        Any instance can handle the request
+
+Benefits:
+    ✅ Horizontally scalable
+    ✅ Easy load balancing
+    ✅ Fault tolerant
+    ✅ Simple deployments
+
+Stateful:
+    The server remembers past interactions (state) and uses it to process future requests.
+
+Example 1:
+    Shopping Cart
+        Cart is incremental
+        Server must remember cart contents
+
+Systems:
+    E-commerce carts -> Why?
+        Because cart should know the previous data stored in cart.
+        The cart data is stateful, not the cart service.
+        Yes, by this thinking every database is stateful.
+        And that's what we do in hybrid approach externalize the state. So, that overall service can remain
+        stateless
+    Banking transactions
+        As, payment, balance needs to be stored
+    Multiplayer games
+        Previous position of the player needs to be stored.
+    Playback progress ->  Why?
+    WebSocket Chat [We also build this, user session or user sate is stored in redis]
+        Here redis works as Stateful.
+        Server remains stateless, state moved externally or outsource. This is the modern best practice.
+
+   Scalability   -> Harder
+   load balancing  -> Sticky sessions
+   Fault tolerant   -> Risk of data loss
+   Simple deployments
+

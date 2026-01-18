@@ -4,10 +4,14 @@ Build:
     3. Chess Game
     4. Instagram
     5. Uber
+    6. Authentication and Authorization system [We can not save user password]
+    7. Build Confluence page. [where mutiple user edit same page at same time]
+    8. Kubernetes design
 
 Patterns:
     1. Factory design pattern
     2. Strategy Design pattern
+    4. Template Design Pattern
     3. SAGA Design Pattern
 
 Kinjal:

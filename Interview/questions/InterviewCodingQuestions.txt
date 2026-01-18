@@ -4,10 +4,41 @@ Data Structure:
         Median of 2 sorted array
         Dutch Nation Flag Algorithm
         Search In matrix that is sorted row and column wise
+            First fix, i = 0 and j = n-1
+            while(i<n && j>=0){
+                if(arr[i][j] == target){
+                    return true;
+                }
+                if(target<arr[i][j]){
+                    j--;
+                }else{
+                    i++;
+                }
+            }
+        Find unique element in an array, where every element is appearing twice except one.
+            Simple XOR
+        Find 2 unique elements in an array, where every element is appearing twice except two.
+            output1 = 0; output2 = 0
+            Simple XOR. It contain result of 2 unique elements in a XOR variable.
+            num = XOR & ~ (XOR - 1) // get RightMost Set bit in the XOR result.
+            Iterate over arr:
+                if(num & arr[i] == 0){
+                    output1 = output1 ^ arr[i]
+                }else{
+                    output2 = output2 ^ arr[i]
+                }
+        Less likely to be asked:
+            Find unique element in an array, where every element is appearing three times except one.
+                oneTime = 0; twoTimes = 0
+                Iterate over arr:
+                    oneTime = (oneTime ^ arr[i]) & (~(twoTimes))
+                    twoTimes = (twoTimes ^ arr[i]) & (~(oneTime))
+                return oneTime;
 
     Link List:
         1. Palindrome in link list.
         2. Reverse alternate k link list
+        3. Circular Link list
 
     Dynamic Programming:
         Square -> 3 variation
@@ -15,17 +46,88 @@ Data Structure:
                 https://www.youtube.com/watch?v=_Lf1looyJMU
             Maximum Size Rectangle of All 1's Dynamic Programming [Tricky]
                 https://www.youtube.com/watch?v=g8bSdXCG-lA
+            Maximum Sum Rectangular Submatrix in Matrix 2D kadane
+                https://www.youtube.com/watch?v=yCQN096CwWM&list=PLgwE03nSxZ4GoHvoy6ay6OSBmcJ6BX2h7&index=14
+
+        Buy/Sell stock with K transactions:
+            3 variation
+            1. Buy once sell once
+            2. Buy n times can sell n times but we can hold at most 1 stock at a time.
+            2. Buy k times can sell k times as we can hold at most k stock at a time.
+
+            121. Best Time to Buy and Sell Stock: Simple
+                    You are given an array prices where prices[i] is the price of a given stock on the ith day.
+                    You want to maximize your profit by choosing a single day to buy one stock and choosing
+                    a different day in the future to sell that stock.
+                    Return the maximum profit you can achieve from this transaction. If you cannot achieve
+                    any profit, return 0.
+
+                    Input: prices = [7,1,5,3,6,4]
+                    Output: 5
+                    Explanation: Buy on day 2 (price = 1) and sell on day 5 (price = 6), profit = 6-1 = 5.
+                    Note that buying on day 2 and selling on day 1 is not allowed because you must buy before
+                    you sell.
+
+              122. Best Time to Buy and Sell Stock II
+                    You are given an integer array prices where prices[i] is the price of a given stock on
+                    the ith day. On each day, you may decide to buy and/or sell the stock. You can only
+                    hold at most one share of the stock at any time. However, you can sell and buy the
+                    stock multiple times on the same day, ensuring you never hold more than one share of
+                    the stock.
+                    Find and return the maximum profit you can achieve.
+
+                    Input: prices = [7,1,5,3,6,4]
+                    Output: 7
+                    Explanation: Buy on day 2 (price = 1) and sell on day 3 (price = 5), profit = 5-1 = 4.
+                    Then buy on day 4 (price = 3) and sell on day 5 (price = 6), profit = 6-3 = 3.
+                    Total profit is 4 + 3 = 7.
+
+
+
+        Longest palindromic subsequence:
+
+        wild Card Matching:
+
+        Minimum Jump tp reach end:
+
+
+
+
+
+
 
 
         Thinking Notes revision
 
     Stack:
         Max. area rectangle in Histogram
-            stack pop:
-                Descending
+            i/p: 2, 1, 2:
+                o/p: 3(include height 2, 1, 2): width: 3 * height: 1
+            i/p: 4, 2, 0, 3, 2, 5
+                o/p: 6(include height 3, 2, 5): width: 3 * height: 2
+            stack insertion:
+                Ascending
+                    Integer top = stack.pop();
+                    int currArea = 0;
+                    if(stack.isEmpty()){
+                        /*
+                            As, when stack is empty it means the top element is the lowest element
+                            till currWidth. So, height of top can be be included till currWidth.
+                        */
+                        currArea = currWidth * heights[top];
+                    }else{
+                        /*
+                            As, when stack is non empty.
+                            currWidth - stack.peek() - 1: this expression tells height curr top element
+                            can be included immediately just after stack.peek() element.
+                            Because curr top is obviously greater then stack.peek().
+                        */
+                        currArea = (currWidth - stack.peek() - 1) * heights[top];
+                    }
         Next large number
-                stack pop:
-                    Ascending
+                stack insertion:
+                    Decreasing (idea is as soon as we are inserting we are saying/checking it can be answer
+                    of previous element in Stack)
 
     Queue:
         Min. Sliding window k
@@ -35,6 +137,9 @@ Data Structure:
 
      Tree:
         Check tree is BST or not.
+        Top view
+            level order
+            left - 1, right + 1
 
     Sort:
         Merge Sort on 2d array

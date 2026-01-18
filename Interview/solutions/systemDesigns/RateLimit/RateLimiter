@@ -8,6 +8,8 @@ Rate Limiter: Rate user Request
      Gateways:
         1. Spring Cloud Gateway(SCG) rate-limiter by YAML configuration. Internally use Token Bucket algorithm
        backed by Redis.
+        Its primary role is API Gateway, but It does load balancing as a capability.
+
        ❌ Cannot express:
             10 req/sec per user AND 100 req/min per IP AND 500 req/min global
        For this Bucket4j (Redis): It is a rate limiting engine, not a gateway feature.
@@ -22,6 +24,18 @@ Rate Limiter: Rate user Request
 
 
 Spring Cloud Gateway – Rate Limiter (YAML):
+
+                   ┌────────────────────────┐
+                   │ Spring Cloud Gateway   │
+                   │                        │
+                   │  • L7 Routing          │
+    Client ───────▶│  • Load Balancing      │
+                   │  • Rate Limiting       │
+                   │  • Auth                │
+                   │  • Circuit Breaker     │
+                   └────────────────────────┘
+                               │
+                        Microservices
 
     spring:
       cloud:

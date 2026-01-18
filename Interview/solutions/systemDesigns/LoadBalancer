@@ -1,0 +1,90 @@
+load balancer:
+    A load balancer distributes incoming traffic across multiple servers to improve availability,
+    scalability, and fault tolerance using algorithms:
+        round-robin
+        least-connections
+        hashing
+
+    Client  ----> load balancer ----> Web Server ------> load balancer ----> Application Server ------> load balancer ----> Database Server
+
+Characteristics
+    Check health of servers regularly:  /health
+            When TTL of the cached entries expires.
+        Server unhealthy → removed from pool
+        Server healthy → added back
+
+Types of Load Balancers:
+    1️⃣ Layer-4 Load Balancer (Transport Level):
+        Operates at: TCP / UDP level
+            Routes based on IP + Port
+
+    Example
+        AWS Network Load Balancer
+
+    2️⃣ Layer-7 Load Balancer (Application Level):
+        Operates at: HTTP / HTTPS
+    Example:
+        AWS Application Load Balancer
+        Ingress Controller in Kubernetes:
+            Ingress Controller is the actual Layer-7 load balancer in Kubernetes that watches Ingress
+            rules and routes external traffic to internal services securely and efficiently.
+        Spring Cloud Gateway
+
+    Load Balancer in Kubernetes:
+        Ingress Controller acts as a load balancer
+
+
+Load Balancer ask Service Registry what are the healthy instances of service. [Where is user-service?]
+    As in multi pod system instances of services changes [scale up/scale down/ deployment kill
+    previous pods and bring ne pods]
+     Service starts -> Registers itself  <----- Load Balancer [cache Service Registry]
+
+     Spring ----> Eureka
+     Kafka -----> Zookeeper
+
+Kubernetes
+    uses DNS as a service registry.
+        DNS returns: multiple pod IPs
+
+        DNS resolve name to IP addresses.
+
+    | Feature           | DNS        | Service Registry |
+    | ----------------- | ---------- | ---------------- |
+    | Name resolution   | ✅          | ✅              |
+    | Health awareness  | ❌          | ✅              |
+    | Instance metadata | ❌          | ✅              |
+    | Dynamic updates   | Slow (TTL) | Near real-time   |
+    | Client-side LB    | Limited    | Strong           |
+
+Local Load Balancing Vs Global Load Balancing(GSLB) (Geo / Multi-Region)
+
+Local Load Balancing:
+    It happens within a single region / cluster and usually close to the application.
+    Traffic is balanced among replicas of the same service.
+
+                    Client / Service A
+                        ↓
+                    Service Registry or DNS
+                        ↓
+                    Pick one instance
+
+    In Kubernetes Local Load Balancing DNS returns: One ClusterIP
+
+
+
+Global Load Balancing:
+    Routes traffic across regions or data centers.
+    Decision happens before traffic reaches the application.
+    DNS
+
+
+              User
+                ↓
+        Global Load Balancer DNS
+                ↓
+        Local Load Balancer/Regional Load Balancer: It balances traffic between: Ingress controller pods, IPs exposed by Kubernetes
+                ↓
+        Kubernetes Ingress Controller, it uses DNS as service registry
+                ↓
+        Pods (Local LB)
+

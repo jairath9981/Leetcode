@@ -1,0 +1,68 @@
+In Kubernetes:
+    service to service interaction is not secure.
+    Canary/traffic splitting, i.e, only few request goes to newly deployed V3 rest goes to old version v2.
+        It is release strategy where you send a small percentage of traffic to a new version of a
+        service before rolling it out to everyone.
+    traffic retries
+
+Envoy:
+    data plane. (actual traffic)
+    It actually handles traffic.
+    Retry failed calls
+    Apply timeouts
+    Encrypt traffic (mTLS)
+
+    Envoy A + Service A  ---->  Envoy B + Service B
+    Pod
+     ├── App Container
+     └── Envoy Sidecar
+
+    Kubernetes Ingress Gateway (Envoy)
+
+Istio:
+    Service Mesh Control Plane
+    Configures Envoy
+    Controls routing rules
+    Collects telemetry, Prometheus
+    Istio does NOT handle traffic itself, Envoy does.
+    Istio is not Mandatory for Envoy
+        We can run Envoy without Istio.
+        Istio just makes Envoy manageable at scale.
+
+
+
+Kubernetes → runs pods
+Istio → controls traffic rules
+Envoy → enforces traffic behavior
+Our code → business logic only
+
+
+Where Exactly Are Canary Rules Defined?
+    📍 They are defined as Kubernetes custom resources
+    👉 These live in YAML, deployed to Kubernetes, not inside a microservice.
+    istioctl install
+    kubectl label namespace my-ns istio-injection=enabled
+    GIT/
+    └── k8s/
+        └── my-service/
+            ├── deployment-v1.yaml
+            ├── deployment-v2.yaml
+            ├── service.yaml
+            ├── destination-rule.yaml
+            └── virtual-service.yaml
+
+    CI/CD pipeline automatically take care of this.
+
+
+
+
+    Detailed Flow (Critical Understanding)
+        Request to:
+            http://order-service/api/orders
+        Request hits Envoy proxy:
+        Envoy checks:
+            VirtualService rules
+            DestinationRule subsets
+            Envoy decides:
+            v1 or v2
+            Request forwarded to chosen pod
