@@ -1,4 +1,4 @@
-package InterviewPrep2025;
+package nextlevel.InterviewPrep2025;
 
 
 class PalindromeLinkListNode{

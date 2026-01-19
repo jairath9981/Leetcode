@@ -40,7 +40,7 @@ they need to create object first.
 static local variables are not allowed in java, i.e, inside functions we can not declare any static
 variables.
 ==========================================================================================
-Interview Question: Parent Class Of Exception:
+nextlevel.Interview Question: Parent Class Of Exception:
 
                            Object
                               |
@@ -64,7 +64,7 @@ Interview Question: Parent Class Of Exception:
            ObjectInputStream           ObjectOutputStream
 ==========================================================================================
 
-Interview Question: What is difference between abstract class with abstract functions and
+nextlevel.Interview Question: What is difference between abstract class with abstract functions and
 abstract class without abstract functions?
 
 Abstract Class
