@@ -1,2 +1,3 @@
 Dynamic Programming:
     Maximum Sum Increasing Subsequence
+    Palindrome Partition

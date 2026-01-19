@@ -28,9 +28,8 @@ public class MergeSortOn2dArrayIntervals {
     }
 
     private void sort2SortedArrays(int[][] arr, int left, int mid, int right) {
-//        System.out.println("Sort 2 sorted arrays "+left+"  "+mid+"  "+right);
         int n1 = mid - left + 1;
-        int n2 = right - mid;
+        int n2 = right - (mid + 1) + 1;
 
         int[][]leftArr = new int[n1][2];
         int[][]rightArr = new int[n2][2];
@@ -90,7 +89,7 @@ public class MergeSortOn2dArrayIntervals {
     private void printArray(int[][] arr) {
         System.out.println("Print Array");
         for(int i = 0; i<arr.length; i++)
-            System.out.print(arr[i][0]+" - "+arr[i][1]+",   ");
+            System.out.println(arr[i][0]+" - "+arr[i][1]);
         System.out.println();
     }
 }
